@@ -1,5 +1,11 @@
 project:
   type: manuscript
+  output-dir: _site
+
+website:
+  title: "Machine Learning For Microscopy"
+  site-url: https://YOUR_GITHUB_USERNAME.github.io/MachineLearningForMicroscopy
+  repo-url: https://github.com/YOUR_GITHUB_USERNAME/MachineLearningForMicroscopy
 
 execute:
   freeze: auto
