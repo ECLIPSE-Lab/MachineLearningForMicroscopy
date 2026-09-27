@@ -1,5 +1,5 @@
 ---
-title: Seminar Machine Learning for Microscopy SS 25
+title: Seminar Machine Learning for Microscopy WS 26
 author:
   - name: Philipp Pelz
     orcid: 0000-0002-8009-4515
@@ -43,28 +43,32 @@ jupyter: python3
 [Pelz Lab website](https://pelzlab.science) 
  
 
+**Wed 16:00h - 17:30h, IZNF Rm 01.140**
+
 # Topics
 
 # Schedule
-## Session 1: Intro (24.04.2025)
- 
-## Sessions 2-5: Journal Club 8.5.25 - 29.05.25
+## Session 1: Intro (21.10.2026)
 
-## Session 6: 05.06.25 - Talks 1 - 2  
+## Sessions 2-5: Journal Club 28.10.26 - 18.11.26
 
-## Session 7: 12.06.25 - Talks 3 - 4
+## Session 6: 25.11.26 - Talks 1 - 2
 
-## Session 8: 19.06.25 - Talks 5 - 6
-#
-## Session 9: 26.06.25 - Talks 7 - 8
+## Session 7: 02.12.26 - Talks 3 - 4
 
-## Session 10: 03.07.25 - Talks 9 - 10
+## Session 8: 09.12.26 - Talks 5 - 6
 
-## Session 11: 10.07.25 - Talks 11 - 12
+## Session 9: 16.12.26 - Talks 7 - 8
 
-## Session 12: 17.07.25 - Talks 13 - 14
+## Session 10: 06.01.27 - Talks 9 - 10
 
-## Session 13: 24.07.25 - Talks 15 - 16
+## Session 11: 13.01.27 - Talks 11 - 12
+
+## Session 12: 20.01.27 - Talks 13 - 14
+
+## Session 13: 27.01.27 - Talks 15 - 16
+
+## Session 14: 03.02.27 - Buffer / Wrap-up
 
 ## References {.unnumbered}
 
