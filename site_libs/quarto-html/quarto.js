@@ -1,3 +1,6 @@
+import * as tabsets from "./tabsets/tabsets.js";
+import * as scrollableRegions from "./scrollable-regions/scrollable-regions.js";
+
 const sectionChanged = new CustomEvent("quarto-sectionChanged", {
   detail: {},
   bubbles: true,
@@ -32,21 +35,25 @@ const layoutMarginEls = () => {
 };
 
 window.document.addEventListener("DOMContentLoaded", function (_event) {
-  // Recompute the position of margin elements anytime the body size changes
+  // Recompute the position of margin elements and re-sync scrollable regions
+  // anytime the body size changes. Trailing, so a resize that ends inside the
+  // wait is still handled rather than left at a size the page no longer has.
   if (window.ResizeObserver) {
     const resizeObserver = new window.ResizeObserver(
       throttle(() => {
         layoutMarginEls();
+        scrollableRegions.syncScrollableRegions();
         if (
           window.document.body.getBoundingClientRect().width < 990 &&
           isReaderMode()
         ) {
           quartoToggleReader();
         }
-      }, 50)
+      }, 50, true)
     );
     resizeObserver.observe(window.document.body);
   }
+  scrollableRegions.syncScrollableRegions();
 
   const tocEl = window.document.querySelector('nav.toc-active[role="doc-toc"]');
   const sidebarEl = window.document.getElementById("quarto-sidebar");
@@ -64,19 +71,41 @@ window.document.addEventListener("DOMContentLoaded", function (_event) {
     }
   };
 
-  // fire slideEnter for bootstrap tab activations (for htmlwidget resize behavior)
-  function fireSlideEnter(e) {
+  // dispatch for htmlwidgets
+  // they use slideenter event to trigger resize
+  function fireSlideEnter() {
     const event = window.document.createEvent("Event");
     event.initEvent("slideenter", true, true);
     window.document.dispatchEvent(event);
   }
+
   const tabs = window.document.querySelectorAll('a[data-bs-toggle="tab"]');
   tabs.forEach((tab) => {
     tab.addEventListener("shown.bs.tab", fireSlideEnter);
   });
 
-  // fire slideEnter for tabby tab activations (for htmlwidget resize behavior)
-  document.addEventListener("tabby", fireSlideEnter, false);
+  // dispatch for shiny
+  // they use BS shown and hidden events to trigger rendering
+  function distpatchShinyEvents(previous, current) {
+    if (window.jQuery) {
+      if (previous) {
+        window.jQuery(previous).trigger("hidden");
+      }
+      if (current) {
+        window.jQuery(current).trigger("shown");
+      }
+    }
+  }
+
+  // tabby.js listener: Trigger event for htmlwidget and shiny
+  document.addEventListener(
+    "tabby",
+    function (event) {
+      fireSlideEnter();
+      distpatchShinyEvents(event.detail.previousTab, event.detail.tab);
+    },
+    false
+  );
 
   // Track scrolling and mark TOC links as active
   // get table of contents and sidebar (bail if we don't have at least one)
@@ -236,9 +265,10 @@ window.document.addEventListener("DOMContentLoaded", function (_event) {
         for (const listingPath of listingPaths) {
           const pathWithoutLeadingSlash = listingPath.listing.substring(1);
           for (const item of listingPath.items) {
+            const encodedItem = encodeURI(item);
             if (
-              item === currentPagePath ||
-              item === currentPagePath + "index.html"
+              encodedItem === currentPagePath ||
+              encodedItem === currentPagePath + "index.html"
             ) {
               // Resolve this path against the offset to be sure
               // we already are using the correct path to the listing
@@ -740,7 +770,7 @@ window.document.addEventListener("DOMContentLoaded", function (_event) {
 
     // See if there is an active child to this element
     let hasActiveChild = false;
-    for (child of el.children) {
+    for (const child of el.children) {
       hasActiveChild = walk(child, depth) || hasActiveChild;
     }
 
@@ -800,109 +830,33 @@ window.document.addEventListener("DOMContentLoaded", function (_event) {
   highlightReaderToggle(isReaderMode());
 });
 
-// grouped tabsets
-window.addEventListener("pageshow", (_event) => {
-  function getTabSettings() {
-    const data = localStorage.getItem("quarto-persistent-tabsets-data");
-    if (!data) {
-      localStorage.setItem("quarto-persistent-tabsets-data", "{}");
-      return {};
-    }
-    if (data) {
-      return JSON.parse(data);
-    }
-  }
+tabsets.init();
 
-  function setTabSettings(data) {
-    localStorage.setItem(
-      "quarto-persistent-tabsets-data",
-      JSON.stringify(data)
-    );
-  }
-
-  function setTabState(groupName, groupValue) {
-    const data = getTabSettings();
-    data[groupName] = groupValue;
-    setTabSettings(data);
-  }
-
-  function toggleTab(tab, active) {
-    const tabPanelId = tab.getAttribute("aria-controls");
-    const tabPanel = document.getElementById(tabPanelId);
-    if (active) {
-      tab.classList.add("active");
-      tabPanel.classList.add("active");
-    } else {
-      tab.classList.remove("active");
-      tabPanel.classList.remove("active");
-    }
-  }
-
-  function toggleAll(selectedGroup, selectorsToSync) {
-    for (const [thisGroup, tabs] of Object.entries(selectorsToSync)) {
-      const active = selectedGroup === thisGroup;
-      for (const tab of tabs) {
-        toggleTab(tab, active);
-      }
-    }
-  }
-
-  function findSelectorsToSyncByLanguage() {
-    const result = {};
-    const tabs = Array.from(
-      document.querySelectorAll(`div[data-group] a[id^='tabset-']`)
-    );
-    for (const item of tabs) {
-      const div = item.parentElement.parentElement.parentElement;
-      const group = div.getAttribute("data-group");
-      if (!result[group]) {
-        result[group] = {};
-      }
-      const selectorsToSync = result[group];
-      const value = item.innerHTML;
-      if (!selectorsToSync[value]) {
-        selectorsToSync[value] = [];
-      }
-      selectorsToSync[value].push(item);
-    }
-    return result;
-  }
-
-  function setupSelectorSync() {
-    const selectorsToSync = findSelectorsToSyncByLanguage();
-    Object.entries(selectorsToSync).forEach(([group, tabSetsByValue]) => {
-      Object.entries(tabSetsByValue).forEach(([value, items]) => {
-        items.forEach((item) => {
-          item.addEventListener("click", (_event) => {
-            setTabState(group, value);
-            toggleAll(value, selectorsToSync[group]);
-          });
-        });
-      });
-    });
-    return selectorsToSync;
-  }
-
-  const selectorsToSync = setupSelectorSync();
-  for (const [group, selectedName] of Object.entries(getTabSettings())) {
-    const selectors = selectorsToSync[group];
-    // it's possible that stale state gives us empty selections, so we explicitly check here.
-    if (selectors) {
-      toggleAll(selectedName, selectors);
-    }
-  }
-});
-
-function throttle(func, wait) {
+// With `trailing`, a call dropped during the wait runs once the wait ends, so
+// the last event of a burst is never lost.
+function throttle(func, wait, trailing = false) {
   let waiting = false;
-  return function () {
-    if (!waiting) {
-      func.apply(this, arguments);
-      waiting = true;
-      setTimeout(function () {
-        waiting = false;
-      }, wait);
+  let pending = null;
+  const release = function () {
+    if (pending) {
+      const [context, args] = pending;
+      pending = null;
+      func.apply(context, args);
+      setTimeout(release, wait);
+    } else {
+      waiting = false;
     }
+  };
+  return function () {
+    if (waiting) {
+      if (trailing) {
+        pending = [this, arguments];
+      }
+      return;
+    }
+    func.apply(this, arguments);
+    waiting = true;
+    setTimeout(release, wait);
   };
 }
 
